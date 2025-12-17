@@ -26,28 +26,99 @@ using namespace std;
 class ConcretePlayerTable : public PlayerTable
 {
 private:
-    // TODO: Define your data structures here
-    // Hint: You'll need a hash table with double hashing collision resolution
+    struct Player {
+        int id;
+        string name;
+        bool occupied;
+
+        Player(){
+            id = -1;
+            name = "";
+            occupied = false;
+        }
+    };
+
+    const int tableSize = 101;
+    vector<Player> table;
+
+    int h1(int key){
+        return key % tableSize;
+    }
+
+    int h2(int key){
+        // 97 because it's the smallest prime before 101
+        return 97 - (key % 97);
+    }
 
 public:
     ConcretePlayerTable()
     {
-        // TODO: Initialize your hash table
+        table.resize(tableSize);
     }
 
     void insert(int playerID, string name) override
     {
-        // TODO: Implement double hashing insert
-        // Remember to handle collisions using h1(key) + i * h2(key)
+        // input error cases
+        if (playerID < 0){
+            cout << "invalid id must be 0 or higher" << endl;
+            return;
+        }
+        if (name == ""){
+            cout << "invalid name, no name provided" << endl;
+            return;
+        }
+
+        int hash1 = h1(playerID);
+        int hash2 = h2(playerID);
+        for (int i = 0; i < tableSize; i++){
+            int index = (hash1 + i * hash2) % tableSize;
+
+            if (table[index].id == playerID){
+                cout << "this is a duplicate ID" << endl;
+                return;
+            }
+            if (!table[index].occupied){
+                table[index].name = name;
+                table[index].id = playerID;
+                table[index].occupied = true;
+                return;
+            }
+            // collision: loop continues to next i
+        }
+        
+        // if loop ends then the table is full
+        cout << "Table is full" << endl;
     }
 
     string search(int playerID) override
     {
-        // TODO: Implement double hashing search
-        // Return "" if player not found
+        // input error cases
+        if (playerID < 0){
+            cout << "invalid id must be be 0 or higher" << endl;
+            return "";
+        }
+
+        int hash1 = h1(playerID);
+        int hash2 = h2(playerID);
+
+        for (int i = 0; i < tableSize; i++){
+            int index = (hash1 + i * hash2) % tableSize;
+
+            // if while iterating you hit an empty slot that means
+            // that means the player is not in the table
+            if (!table[index].occupied){
+                return "";
+            }
+
+            if (table[index].id == playerID){
+                return table[index].name;
+            }
+        }
+        // table is full and id isn't in the table
         return "";
     }
 };
+
 
 // --- 2. Leaderboard (Skip List) ---
 
@@ -451,13 +522,67 @@ string WorldNavigator::sumMinDistancesBinary(int n, vector<vector<int>> &roads)
 // PART D: SERVER KERNEL (Greedy)
 // =========================================================
 
-int ServerKernel::minIntervals(vector<char> &tasks, int n)
-{
-    // TODO: Implement task scheduler with cooling time
-    // Same task must wait 'n' intervals before running again
-    // Return minimum total intervals needed (including idle time)
-    // Hint: Use greedy approach with frequency counting
-    return 0;
+int ServerKernel::minIntervals(vector<char> &tasks, int n) {
+    
+    // error handling 
+    if (n < 0) {
+        cout << "Error: Cooling interval 'n' cannot be negative." << endl;
+        return 0;
+    }
+
+    if (tasks.empty()) {
+        return 0;
+    }
+
+    // if no interval then tasks are done back to back
+    if (n == 0) {
+        return tasks.size();
+    }
+
+    // calc frequency of each letter
+    vector<int> freq(26, 0);
+    int maxFreq = 0;
+    int totalValidTasks = 0;
+
+    for (char c : tasks) {
+        // ignore invalid tasks
+        if (c < 'A' || c > 'Z') {
+            cout << "Warning: Invalid task '" << c << "' ignored. Only 'A'-'Z' allowed." << endl;
+            continue;
+        }
+        
+        int index = c - 'A';
+        freq[index]++;
+        
+        // Track the highest frequency found so far
+        if (freq[index] > maxFreq) {
+            maxFreq = freq[index];
+        }
+        totalValidTasks++;
+    }
+
+    // if all cases are invalid
+    if (totalValidTasks == 0){
+        return 0;
+    }
+
+    // Greedy part
+    // count how many tasks have the same max frequency
+    int numMaxFreqTasks = 0;
+    for (int f : freq) {
+        if (f == maxFreq) {
+            numMaxFreqTasks++;
+        }
+    }
+
+    int partCount = maxFreq - 1;
+    int partLength = n + 1;
+    
+    // formula: result = (maxFreq - 1) * (n-1) + number of maxFreq tasks
+    int minSlots = partCount * partLength + numMaxFreqTasks;
+
+    // final result
+    return max(minSlots, totalValidTasks);
 }
 
 // =========================================================
