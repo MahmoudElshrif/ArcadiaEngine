@@ -56,28 +56,124 @@ class ConcreteLeaderboard : public Leaderboard
 private:
     // TODO: Define your skip list node structure and necessary variables
     // Hint: You'll need nodes with multiple forward pointers
+    struct SkipListNode
+    {
+        int playerID;
+        int score;
+        vector<SkipListNode *> forward;
+        SkipListNode(int id, int score, int level) : playerID(id), score(score), forward(level, nullptr) {} // a constructor
+    };
+    SkipListNode *head;
+    int maxLevel;
+    int probability;
+
+    // Helper Functions
+    int randomLevel()
+    {
+        int level = 1;
+        while (rand() % 100 < probability && level < maxLevel)
+            level++;
+        return level;
+    }
+
+    // here is a function to check if a node should come before another based on score and then playerID
+    bool comesBefore(int score1, int id1, int score2, int id2)
+    {
+        if (score1 != score2)
+            return score1 > score2; // higher score first
+        return id1 < id2;           // lower playerID first if scores are equal
+    }
 
 public:
     ConcreteLeaderboard()
     {
         // TODO: Initialize your skip list
+        maxLevel = 16;    // let max level be 16
+        probability = 50; // 50% chance to increase level
+        head = new SkipListNode(-1, INT_MAX, maxLevel);
+        srand(42);
     }
 
     void addScore(int playerID, int score) override
     {
         // TODO: Implement skip list insertion
         // Remember to maintain descending order by score
+        int newLevel = randomLevel();
+        vector<SkipListNode *> update(maxLevel, nullptr);
+        SkipListNode *currentNode = head;
+        // here we find the position to insert
+        for (int i = maxLevel - 1; i >= 0; i--)
+        {
+            // moving right while the next node has higher score (or same score but lower playerID)
+            while (currentNode->forward[i] != nullptr && comesBefore(currentNode->forward[i]->score, currentNode->forward[i]->playerID, score, playerID))
+            {
+                currentNode = currentNode->forward[i];
+            }
+            update[i] = currentNode;
+        }
+        for (int i = 0; i < newLevel; i++)
+        {
+            if (i >= (int)update.size())
+                break;
+            // as we insert in the middle, we need to adjust pointers
+            SkipListNode *newNode = new SkipListNode(playerID, score, newLevel); // create new node
+            newNode->forward[i] = update[i]->forward[i];                         // link new node to next node
+            update[i]->forward[i] = newNode;                                     // link previous node to new node
+        }
     }
 
     void removePlayer(int playerID) override
     {
         // TODO: Implement skip list deletion
+        SkipListNode *currentNode = head;
+        SkipListNode *toBeDelete = nullptr;
+        // searching in level 0
+        while(currentNode!=nullptr){
+            if (currentNode->forward[0]!=nullptr && currentNode->forward[0]->playerID == playerID){
+                toBeDelete = currentNode->forward[0];
+                break;
+            }
+        }
+        if (toBeDelete == nullptr)
+            return; // player not found
+        int targetScore = toBeDelete->score;
+        vector<SkipListNode *> update(maxLevel, nullptr);
+        currentNode = head;
+        // we will mover right and down to find the node to delete
+        for (int i = maxLevel - 1; i >= 0; i--)
+        {
+            while (currentNode->forward[i] != nullptr && comesBefore(currentNode->forward[i]->score, currentNode->forward[i]->playerID, targetScore, playerID))
+            {
+                currentNode = currentNode->forward[i];
+            }
+            update[i] = currentNode;
+        }
+
+        // now i will just unlink the node from all levels
+        // from level 0 to its highest level
+        for (int i = 0; i < toBeDelete->forward.size(); i++)
+        {
+            // if true then the node exists at this level
+            // so we just unlink it
+            if (update[i]->forward[i] != nullptr && update[i]->forward[i]->playerID == playerID)
+            {
+                update[i]->forward[i] = update[i]->forward[i]->forward[i];
+            }
+        }
     }
 
     vector<int> getTopN(int n) override
     {
         // TODO: Return top N player IDs in descending score order
-        return {};
+        int size=n;
+        vector<int> result(n);
+        SkipListNode *currentNode = head->forward[0]; // starting from the head as its the highest score
+        for (int i = 0; i < size && currentNode != nullptr; i++)
+        {
+            result[i] = currentNode->playerID;
+            currentNode = currentNode->forward[0];
+        }
+        return result;
     }
 };
 
@@ -88,11 +184,76 @@ class ConcreteAuctionTree : public AuctionTree
 private:
     // TODO: Define your Red-Black Tree node structure
     // Hint: Each node needs: id, price, color, left, right, parent pointers
+    struct RBNode
+    {
+        int itemID;
+        int price;
+        bool color; // true for Red, false for Black
+        RBNode *left, *right, *parent;
+        RBNode(int id, int price) : itemID(id), price(price), color(true), left(nullptr), right(nullptr), parent(nullptr) {}
+    };
+    RBNode *root;
+    RBNode *TNULL; // sentinel node for leaves
+    // Helper function for TNULL
+    void initializeTNULL()
+    {
+        TNULL = new RBNode(0, 0);
+        TNULL->color = false; // if false then its black
+        TNULL->left = nullptr;
+        TNULL->right = nullptr;
+    }
+    // Helper functions for rotations
+    // Left Rotate for node x 
+    // x 
+    void leftRotate(RBNode *&x)
+    {
+        RBNode *y = x->right;
+        x->right = y->left;
+        if (y->left != TNULL)
+            y->left->parent = x;
+
+        y->parent = x->parent;
+        // if x is root
+        if (x->parent == nullptr)
+            this->root = y;
+        // else if x is left child
+        else if (x == x->parent->left)
+            x->parent->left = y;
+        // else x is right child
+        else
+            x->parent->right = y;
+        y->left = x;
+        x->parent = y;
+    }
+    // Right Rotate for node x
+    // same as leftRotate but inverted
+    void rightRotate(RBNode *&x)
+    {
+        RBNode *y = x->left;
+        x->left = y->right;
+        if (y->right != TNULL)
+            y->right->parent = x;
+
+        y->parent = x->parent;
+        // if x is root
+        if (x->parent == nullptr)
+            this->root = y;
+        // else if x is right child
+        else if (x == x->parent->right)
+            x->parent->right = y;
+        // else x is left child
+        else
+            x->parent->left = y;
+        y->right = x;
+        x->parent = y;
+    }
 
 public:
     ConcreteAuctionTree()
     {
         // TODO: Initialize your Red-Black Tree
+        initializeTNULL();
+        root = TNULL;
     }
 
     void insertItem(int itemID, int price) override
