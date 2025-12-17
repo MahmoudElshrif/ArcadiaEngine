@@ -26,12 +26,14 @@ using namespace std;
 class ConcretePlayerTable : public PlayerTable
 {
 private:
-    struct Player {
+    struct Player
+    {
         int id;
         string name;
         bool occupied;
 
-        Player(){
+        Player()
+        {
             id = -1;
             name = "";
             occupied = false;
@@ -41,11 +43,13 @@ private:
     const int tableSize = 101;
     vector<Player> table;
 
-    int h1(int key){
+    int h1(int key)
+    {
         return key % tableSize;
     }
 
-    int h2(int key){
+    int h2(int key)
+    {
         // 97 because it's the smallest prime before 101
         return 97 - (key % 97);
     }
@@ -59,25 +63,30 @@ public:
     void insert(int playerID, string name) override
     {
         // input error cases
-        if (playerID < 0){
+        if (playerID < 0)
+        {
             cout << "invalid id must be 0 or higher" << endl;
             return;
         }
-        if (name == ""){
+        if (name == "")
+        {
             cout << "invalid name, no name provided" << endl;
             return;
         }
 
         int hash1 = h1(playerID);
         int hash2 = h2(playerID);
-        for (int i = 0; i < tableSize; i++){
+        for (int i = 0; i < tableSize; i++)
+        {
             int index = (hash1 + i * hash2) % tableSize;
 
-            if (table[index].id == playerID){
+            if (table[index].id == playerID)
+            {
                 cout << "this is a duplicate ID" << endl;
                 return;
             }
-            if (!table[index].occupied){
+            if (!table[index].occupied)
+            {
                 table[index].name = name;
                 table[index].id = playerID;
                 table[index].occupied = true;
@@ -85,7 +94,7 @@ public:
             }
             // collision: loop continues to next i
         }
-        
+
         // if loop ends then the table is full
         cout << "Table is full" << endl;
     }
@@ -93,7 +102,8 @@ public:
     string search(int playerID) override
     {
         // input error cases
-        if (playerID < 0){
+        if (playerID < 0)
+        {
             cout << "invalid id must be be 0 or higher" << endl;
             return "";
         }
@@ -101,16 +111,19 @@ public:
         int hash1 = h1(playerID);
         int hash2 = h2(playerID);
 
-        for (int i = 0; i < tableSize; i++){
+        for (int i = 0; i < tableSize; i++)
+        {
             int index = (hash1 + i * hash2) % tableSize;
 
             // if while iterating you hit an empty slot that means
             // that means the player is not in the table
-            if (!table[index].occupied){
+            if (!table[index].occupied)
+            {
                 return "";
             }
 
-            if (table[index].id == playerID){
+            if (table[index].id == playerID)
+            {
                 return table[index].name;
             }
         }
@@ -118,7 +131,6 @@ public:
         return "";
     }
 };
-
 
 // --- 2. Leaderboard (Skip List) ---
 
@@ -199,8 +211,10 @@ public:
         SkipListNode *currentNode = head;
         SkipListNode *toBeDelete = nullptr;
         // searching in level 0
-        while(currentNode!=nullptr){
-            if (currentNode->forward[0]!=nullptr && currentNode->forward[0]->playerID == playerID){
+        while (currentNode != nullptr)
+        {
+            if (currentNode->forward[0] != nullptr && currentNode->forward[0]->playerID == playerID)
+            {
                 toBeDelete = currentNode->forward[0];
                 break;
             }
@@ -236,7 +250,7 @@ public:
     vector<int> getTopN(int n) override
     {
         // TODO: Return top N player IDs in descending score order
-        int size=n;
+        int size = n;
         vector<int> result(n);
         SkipListNode *currentNode = head->forward[0]; // starting from the head as its the highest score
         for (int i = 0; i < size && currentNode != nullptr; i++)
@@ -274,8 +288,8 @@ private:
         TNULL->right = nullptr;
     }
     // Helper functions for rotations
-    // Left Rotate for node x 
-    // x 
+    // Left Rotate for node x
+    // x
     void leftRotate(RBNode *&x)
     {
         RBNode *y = x->right;
@@ -319,6 +333,213 @@ private:
         x->parent = y;
     }
 
+    void RBFixInsert(RBNode *&k)
+    {
+        RBNode *u; // uncle
+
+        while (k->parent->color == true)
+        {
+            if (k->parent == k->parent->parent->right)
+            {
+                u = k->parent->parent->left; // uncle
+                // second senario
+                if (u->color == true)
+                {
+                    // recoloring parent and uncle to black and grandparent to red
+                    u->color = false;
+                    k->parent->color = false;
+                    k->parent->parent->color = true;
+                    k = k->parent->parent;
+                }
+                // third senarios
+                // note third senario leads to fourth senario
+                else
+                {
+                    if (k == k->parent->left)
+                    {
+                        // rotate at the oppostite direction of the node to form a line
+                        k = k->parent;
+                        rightRotate(k);
+                    }
+                    // forth senario
+                    // rotate grandparent (the oppostite direction) of the node and swap colors of parent and grandparent
+                    k->parent->color = false;
+                    k->parent->parent->color = true;
+                    leftRotate(k->parent->parent);
+                }
+            }
+            // same as above but inverted
+            else
+            {
+                u = k->parent->parent->right; // uncle
+
+                if (u->color == true)
+                {
+                    // mirror case 3.1
+                    u->color = false;
+                    k->parent->color = false;
+                    k->parent->parent->color = true;
+                    k = k->parent->parent;
+                }
+                else
+                {
+                    if (k == k->parent->right)
+                    {
+                        // mirror case 3.2.2
+                        k = k->parent;
+                        leftRotate(k);
+                    }
+                    // mirror case 3.2.1
+                    k->parent->color = false;
+                    k->parent->parent->color = true;
+                    rightRotate(k->parent->parent);
+                }
+            }
+            if (k == root)
+                break;
+        }
+        root->color = false;
+    }
+
+    // Helper Functions for Deletion
+    
+    // searching a node
+    RBNode *searchNode(RBNode *node, int itemID)
+    {
+        if (node == TNULL || node == nullptr)
+            return nullptr;
+        if (node->itemID == itemID)
+            return node;
+        // since the tree is ordered by price first then itemID we need to search both sides
+        RBNode *leftSearch = searchNode(node->left, itemID);
+        if (leftSearch != nullptr)
+            return leftSearch;
+        return searchNode(node->right, itemID);
+    }
+
+    // finding successor
+    RBNode *successor(RBNode *node)
+    {
+        RBNode *current = node;
+        while (current->left != TNULL)
+        {
+            current = current->left;
+        }
+        return current;
+    }
+
+    // we need to replace nodes during deletion
+    // node u will be replaced by node v
+    void rbTransplant(RBNode *u, RBNode *v)
+    {
+        if (u->parent == nullptr)
+        {
+            root = v;
+        }
+        else if (u == u->parent->left)
+        {
+            u->parent->left = v;
+        }
+        else
+        {
+            u->parent->right = v;
+        }
+        v->parent = u->parent;
+    }
+    // deleting a black node may violate RB properties
+    // while deleting a red node will not violate any properties
+
+
+    // there are multiple scenarios to fix violations after deletion
+    // 1) sibling is red ===> recolor sibling and parent and do rotation on parent
+    // 2) sibling is black with two black children ===> recolor sibling to red
+    // 3) sibling is black with at least one red child
+    //    3.1) sibling's right child is black ===> recolor sibling and its left child and do rotation on sibling
+    //    3.2) sibling's right child is red ===> recolor sibling and parent and sibling's right child and do rotation on parent
+    void RBFixDelete(RBNode *x)
+    {
+        RBNode *s;
+        while (x != root && x->color == false)
+        {
+            if (x == x->parent->left)
+            {
+                s = x->parent->right;
+                // Case 1: sibling is red
+                if (s->color == true)
+                {
+                    // we recolor sibling and parent and do left rotate on parent
+                    s->color = false;
+                    x->parent->color = true;
+                    leftRotate(x->parent);
+                    s = x->parent->right;
+                }
+
+                // Case 2: sibling is black with two black children
+                if (s->left->color == false && s->right->color == false)
+                {
+                    // recolor sibling to red
+                    s->color = true;
+                    x = x->parent;
+                }
+                // Case 3: sibling is black with at least one red child
+                else
+                {
+                    // Case 3.1: sibling's right child is black
+                    if (s->right->color == false)
+                    {
+                        // recolor sibling and its left child and do right rotate on sibling
+                        s->left->color = false;
+                        s->color = true;
+                        rightRotate(s);
+                        s = x->parent->right;
+                    }
+                    // Case 3.2: sibling's right child is red
+                    // recolor sibling and parent and sibling's right child
+                    s->color = x->parent->color;
+                    x->parent->color = false;
+                    s->right->color = false;
+                    leftRotate(x->parent);
+                    x = root;
+                }
+            }
+            // same as above but inverted
+            else
+            {
+                s = x->parent->left;
+                if (s->color == true)
+                {
+                    s->color = false;
+                    x->parent->color = true;
+                    rightRotate(x->parent);
+                    s = x->parent->left;
+                }
+
+                if (s->right->color == false && s->left->color == false)
+                {
+                    s->color = true;
+                    x = x->parent;
+                }
+                else
+                {
+                    if (s->left->color == false)
+                    {
+                        s->right->color = false;
+                        s->color = true;
+                        leftRotate(s);
+                        s = x->parent->left;
+                    }
+
+                    s->color = x->parent->color;
+                    x->parent->color = false;
+                    s->left->color = false;
+                    rightRotate(x->parent);
+                    x = root;
+                }
+            }
+        }
+        x->color = false;
+    }
+
 public:
     ConcreteAuctionTree()
     {
@@ -327,16 +548,131 @@ public:
         root = TNULL;
     }
 
+    // strategy for insertion
+    // first do normal BST insert and color the new node red
+    // then fix any violations of RB properties
+
+    // there are four scenarios
+    // 1) the node is the root ===> just color it black
+    // 2) the uncle is red ===> recolor parent and uncle to black and grandparent to red
+    // 3) the uncle is black and form a triangle (> or <) ==> rotate parent to the opposite direction of the node to form a line
+    // 4) the uncle is black and form a line (\ or /) ==> rotate grandparent to the opposite direction of the node and swap colors of parent and grandparent
+
     void insertItem(int itemID, int price) override
     {
         // TODO: Implement Red-Black Tree insertion
         // Remember to maintain RB-Tree properties with rotations and recoloring
+        RBNode *node = new RBNode(itemID, price);
+        node->parent = nullptr;
+        node->left = TNULL;
+        node->right = TNULL;
+        node->color = true; // remember True means Red
+
+        // now a standard BST insertion
+        RBNode *y = nullptr;
+        RBNode *x = this->root;
+        while (x != TNULL)
+        {
+            // we should compare Price first then itemID for uniqueness
+            y = x;
+            if (node->price < x->price)
+                x = x->left;
+            else if (node->price > x->price)
+                x = x->right;
+            else
+            {
+                // prices are equal, compare itemID
+                if (node->itemID < x->itemID)
+                    x = x->left;
+                else if (node->itemID > x->itemID)
+                    x = x->right;
+                else
+                {
+                    // for edge test case
+                    // duplicate itemID, do not insert
+                    delete node;
+                    return;
+                }
+            }
+        }
+        // now linking the pointers
+        node->parent = y;
+        if (y == nullptr)
+            root = node;
+        else if (node->price < y->price)
+            y->left = node;
+        else if (node->price > y->price)
+            y->right = node;
+        else
+        {
+            if (node->itemID < y->itemID)
+                y->left = node;
+            else
+                y->right = node;
+        }
+        if (node->parent == nullptr)
+        {
+            node->color = false; // if root color it black
+            return;
+        }
+        else if (node->parent->parent == nullptr)
+            return;
+
+        // fixing violations
+        RBFixInsert(node);
     }
+
+    // we have multiple scenarios for deletion
+    // 1) node to be deleted has no children ===> just remove it
+    // 2) node to be deleted has one child ===> replace node with its child
+    // 3) node to be deleted has two children ===> find its successor, replace the node with its successor, and replace successor with its right child
 
     void deleteItem(int itemID) override
     {
         // TODO: Implement Red-Black Tree deletion
         // This is complex - handle all cases carefully
+        RBNode *nodeToBeDeleted = searchNode(this->root, itemID);
+        if (nodeToBeDeleted == nullptr)
+            return; // item not found
+        RBNode *y = nodeToBeDeleted;
+        RBNode *x;
+        bool yOriginalColor = y->color;
+        if (nodeToBeDeleted->left == TNULL)
+        {
+            x = nodeToBeDeleted->right;
+            rbTransplant(nodeToBeDeleted, nodeToBeDeleted->right);
+        }
+        else if (nodeToBeDeleted->right == TNULL)
+        {
+            x = nodeToBeDeleted->left;
+            rbTransplant(nodeToBeDeleted, nodeToBeDeleted->left);
+        }
+        else
+        {
+            y = successor(nodeToBeDeleted->right);
+            yOriginalColor = y->color;
+            x = y->right;
+            if (y->parent == nodeToBeDeleted)
+            {
+                x->parent = y;
+            }
+            else
+            {
+                rbTransplant(y, y->right);
+                y->right = nodeToBeDeleted->right;
+                y->right->parent = y;
+            }
+
+            rbTransplant(nodeToBeDeleted, y);
+            y->left = nodeToBeDeleted->left;
+            y->left->parent = y;
+            y->color = nodeToBeDeleted->color;
+        }
+        delete nodeToBeDeleted;
+        if (yOriginalColor == false) // if the deleted node was black then fix violations
+        {
+            RBFixDelete(x);
+        }
     }
 };
 
@@ -522,20 +858,24 @@ string WorldNavigator::sumMinDistancesBinary(int n, vector<vector<int>> &roads)
 // PART D: SERVER KERNEL (Greedy)
 // =========================================================
 
-int ServerKernel::minIntervals(vector<char> &tasks, int n) {
-    
-    // error handling 
-    if (n < 0) {
+int ServerKernel::minIntervals(vector<char> &tasks, int n)
+{
+
+    // error handling
+    if (n < 0)
+    {
         cout << "Error: Cooling interval 'n' cannot be negative." << endl;
         return 0;
     }
 
-    if (tasks.empty()) {
+    if (tasks.empty())
+    {
         return 0;
     }
 
     // if no interval then tasks are done back to back
-    if (n == 0) {
+    if (n == 0)
+    {
         return tasks.size();
     }
 
@@ -544,40 +884,46 @@ int ServerKernel::minIntervals(vector<char> &tasks, int n) {
     int maxFreq = 0;
     int totalValidTasks = 0;
 
-    for (char c : tasks) {
+    for (char c : tasks)
+    {
         // ignore invalid tasks
-        if (c < 'A' || c > 'Z') {
+        if (c < 'A' || c > 'Z')
+        {
             cout << "Warning: Invalid task '" << c << "' ignored. Only 'A'-'Z' allowed." << endl;
             continue;
         }
-        
+
         int index = c - 'A';
         freq[index]++;
-        
+
         // Track the highest frequency found so far
-        if (freq[index] > maxFreq) {
+        if (freq[index] > maxFreq)
+        {
             maxFreq = freq[index];
         }
         totalValidTasks++;
     }
 
     // if all cases are invalid
-    if (totalValidTasks == 0){
+    if (totalValidTasks == 0)
+    {
         return 0;
     }
 
     // Greedy part
     // count how many tasks have the same max frequency
     int numMaxFreqTasks = 0;
-    for (int f : freq) {
-        if (f == maxFreq) {
+    for (int f : freq)
+    {
+        if (f == maxFreq)
+        {
             numMaxFreqTasks++;
         }
     }
 
     int partCount = maxFreq - 1;
     int partLength = n + 1;
-    
+
     // formula: result = (maxFreq - 1) * (n-1) + number of maxFreq tasks
     int minSlots = partCount * partLength + numMaxFreqTasks;
 
